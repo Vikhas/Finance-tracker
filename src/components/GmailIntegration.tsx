@@ -47,7 +47,7 @@ export default function GmailIntegration({ userId, onTransactionsImported }: Gma
     setLoading(true);
     setError('');
 
-    const googleClientId = 'YOUR_GOOGLE_CLIENT_ID';
+    const googleClientId = '1058833751561-pspmdneuqcrul9q6iop1kfjgub8quk5h.apps.googleusercontent.com';
     const redirectUri = `${window.location.origin}`;
     const scope = 'https://www.googleapis.com/auth/gmail.readonly';
 

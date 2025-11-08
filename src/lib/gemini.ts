@@ -1,4 +1,9 @@
+// ✅ Load Gemini API Key from environment
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+
+// Debug logs for API key
+console.log('🔑 Gemini API Key loaded:', !!import.meta.env.VITE_GEMINI_API_KEY);
+console.log('🔑 API Key length:', import.meta.env.VITE_GEMINI_API_KEY?.length);
 
 export interface ParsedTransaction {
   amount: number;
@@ -10,7 +15,9 @@ export interface ParsedTransaction {
 }
 
 export async function parseTransactionText(text: string): Promise<ParsedTransaction[]> {
-  if (!GEMINI_API_KEY || GEMINI_API_KEY === 'your_gemini_api_key_here') {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+
+  if (!apiKey) {
     throw new Error('Please add your Gemini API key to the .env file');
   }
 
@@ -31,24 +38,34 @@ ${text}
 Return ONLY valid JSON, no markdown or explanations.`;
 
   try {
+    // ✅ Use v1beta endpoint for Gemini 1.5 models
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 1000,
+          },
         }),
       }
     );
 
+    console.log('🌐 [GEMINI] Response status:', response.status);
+
     if (!response.ok) {
-      throw new Error('Failed to parse transaction with Gemini API');
+      const errorText = await response.text();
+      console.error('❌ [GEMINI] API Error:', errorText);
+      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
-    const generatedText = data.candidates[0]?.content?.parts[0]?.text || '[]';
+    console.log('✅ [GEMINI] API Response:', data);
 
+    const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
     const jsonMatch = generatedText.match(/\[[\s\S]*\]/);
     const jsonStr = jsonMatch ? jsonMatch[0] : '[]';
 
@@ -60,7 +77,7 @@ Return ONLY valid JSON, no markdown or explanations.`;
 }
 
 export async function askGemini(question: string, transactions: unknown[]): Promise<string> {
-  if (!GEMINI_API_KEY || GEMINI_API_KEY === 'your_gemini_api_key_here') {
+  if (!GEMINI_API_KEY) {
     throw new Error('Please add your Gemini API key to the .env file');
   }
 
@@ -74,23 +91,32 @@ User Question: ${question}
 Provide a clear, concise answer with specific numbers and insights.`;
 
   try {
+    // ✅ Use v1beta endpoint here too
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.3,
+            maxOutputTokens: 500,
+          },
         }),
       }
     );
 
+    console.log('🌐 [GEMINI] Response status:', response.status);
+
     if (!response.ok) {
-      throw new Error('Failed to get response from Gemini API');
+      const errorText = await response.text();
+      console.error('❌ [GEMINI] API Error:', errorText);
+      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
-    return data.candidates[0]?.content?.parts[0]?.text || 'Sorry, I could not generate a response.';
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || 'Sorry, I could not generate a response.';
   } catch (error) {
     console.error('Error asking Gemini:', error);
     throw error;
